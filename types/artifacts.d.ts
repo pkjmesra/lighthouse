@@ -238,6 +238,7 @@ declare module Artifacts {
   interface Accessibility {
     violations: Array<AxeRuleResult>;
     notApplicable: Array<Pick<AxeRuleResult, 'id'>>;
+    passes: Array<Pick<AxeRuleResult, 'id'>>;
     incomplete: Array<AxeRuleResult>;
     version: string;
   }
@@ -251,6 +252,7 @@ declare module Artifacts {
     name: string;
     publicId: string;
     systemId: string;
+    documentCompatMode: string;
   }
 
   interface DOMStats {
@@ -960,6 +962,7 @@ export interface TraceEvent {
       documentLoaderURL?: string;
       frames?: {
         frame: string;
+        url: string;
         parent?: string;
         processId?: number;
       }[];
@@ -996,6 +999,9 @@ export interface TraceEvent {
       compositeFailed?: number;
       unsupportedProperties?: string[];
       size?: number;
+      /** Responsiveness data. */
+      interactionType?: 'drag'|'keyboard'|'tapOrClick';
+      maxDuration?: number;
     };
     frame?: string;
     name?: string;
