@@ -568,6 +568,7 @@ function getMeta(deprecation) {
       message = str_(UIStrings.v8SharedArrayBufferConstructedInExtensionWithoutIsolation);
       milestone = 96;
       break;
+    // @ts-expect-error ???
     case 'WebCodecsVideoFrameDefaultTimestamp':
       message = str_(UIStrings.webCodecsVideoFrameDefaultTimestamp);
       feature = 5667793157488640;
