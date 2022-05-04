@@ -101,10 +101,6 @@ const UIStrings = {
   customCursorIntersectsViewport:
   'Custom cursors with size greater than 32x32 DIP intersecting native UI is deprecated and will be removed.',
   /**
-  *@description This message is shown when the example deprecated feature is used
-  */
-  deprecationExample: 'This is an example of a translated deprecation issue message.',
-  /**
   *@description This warning occurs when a script modifies `document.domain`
   *    without having set on `Origin-Agent-Cluster` http header. In other
   *    words, when a script relies on the default behaviour of
@@ -403,11 +399,6 @@ function getMeta(deprecation) {
       feature = 5825971391299584;
       milestone = 75;
       break;
-    case 'DeprecationExample':
-      message = str_(UIStrings.deprecationExample);
-      feature = 5684289032159232;
-      milestone = 100;
-      break;
     case 'DocumentDomainSettingWithoutOriginAgentClusterHeader':
       message = str_(UIStrings.documentDomainSettingWithoutOriginAgentClusterHeader);
       milestone = 106;
@@ -594,7 +585,7 @@ function getMeta(deprecation) {
       milestone = 80;
       break;
     default:
-      message = legacyMessage || str_(UIStrings.deprecationExample);
+      message = legacyMessage || str_(UIStrings.unknownDeprecation);
       break;
   }
 
@@ -634,38 +625,36 @@ class Deprecations extends Audit {
         const deprecationMeta = getMeta(deprecation);
 
         const links = [];
-        if (deprecationMeta.feature !== 0) {
+        if (deprecationMeta.feature) {
           links.push({
-            link: `https://chromestatus.com/feature/${deprecationMeta.feature}`,
-            linkTitle: str_(UIStrings.feature),
+            type: 'link',
+            url: `https://chromestatus.com/feature/${deprecationMeta.feature}`,
+            text: str_(UIStrings.feature),
           });
         }
-        if (deprecationMeta.milestone !== 0) {
+        if (deprecationMeta.milestone) {
           links.push({
-            link: 'https://chromiumdash.appspot.com/schedule',
-            linkTitle: str_(UIStrings.milestone, {milestone: deprecationMeta.milestone}),
+            type: 'link',
+            url: 'https://chromiumdash.appspot.com/schedule',
+            text: str_(UIStrings.milestone, {milestone: deprecationMeta.milestone}),
           });
         }
-        let subItems;
+
+        /** @type {LH.Audit.Details.TableSubItems=} */
+        let subItems = undefined;
         if (links.length) {
           subItems = {
             type: 'subitems',
-            items: links.map(link => {
-              return {
-                type: 'link',
-                url: link.url,
-                text: '',
-              },
-            }),
+            items: links,
           };
         }
 
         /** @type {LH.Audit.Details.TableItem} */
         const item = {
           value: deprecationMeta.message || '',
-          subItems,
           // Protocol.Audits.SourceCodeLocation.columnNumber is 1-indexed, but we use 0-indexed.
           source: Audit.makeSourceLocation(url, lineNumber, columnNumber - 1, bundle),
+          subItems,
         };
         return item;
       });
