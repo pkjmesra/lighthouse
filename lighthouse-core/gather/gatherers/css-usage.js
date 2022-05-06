@@ -5,7 +5,9 @@
  */
 'use strict';
 
+const log = require('lighthouse-logger');
 const FRGatherer = require('../../fraggle-rock/gather/base-gatherer.js');
+const Sentry = require('../../lib/sentry.js');
 
 /**
  * @fileoverview Tracks unused CSS rules.
@@ -17,15 +19,12 @@ class CSSUsage extends FRGatherer {
     this._session = undefined;
     /** @type {Map<string, Promise<LH.Artifacts.CSSStyleSheetInfo|Error>>} */
     this._sheetPromises = new Map();
-    /** @type {Set<string>} */
-    this._removedSheets = new Set();
     /**
      * Initialize as undefined so we can assert results are fetched.
      * @type {LH.Crdp.CSS.RuleUsage[]|undefined}
      */
     this._ruleUsage = undefined;
     this._onStylesheetAdded = this._onStylesheetAdded.bind(this);
-    this._onStylesheetRemoved = this._onStylesheetRemoved.bind(this);
   }
 
   /** @type {LH.Gatherer.GathererMeta} */
@@ -44,16 +43,23 @@ class CSSUsage extends FRGatherer {
         header: event.header,
         content: content.text,
       }))
-      .catch(err => /** @type {Error} */ (err));
+      .catch(/** @param {Error} err */ (err) => {
+        log.warn(
+          'CSSUsage',
+          `Error fetching content of stylesheet with URL "${event.header.sourceURL}"`
+        );
+        Sentry.captureException(err, {
+          tags: {
+            gatherer: this.name,
+          },
+          extra: {
+            url: event.header.sourceURL,
+          },
+          level: 'error',
+        });
+        return err;
+      });
     this._sheetPromises.set(styleSheetId, sheetPromise);
-  }
-
-  /**
-   * @param {LH.Crdp.CSS.StyleSheetRemovedEvent} event
-   */
-  async _onStylesheetRemoved(event) {
-    const styleSheetId = event.styleSheetId;
-    this._removedSheets.add(styleSheetId);
   }
 
   /**
@@ -63,7 +69,6 @@ class CSSUsage extends FRGatherer {
     const session = context.driver.defaultSession;
     this._session = session;
     session.on('CSS.styleSheetAdded', this._onStylesheetAdded);
-    session.on('CSS.styleSheetRemoved', this._onStylesheetRemoved);
 
     await session.sendCommand('DOM.enable');
     await session.sendCommand('CSS.enable');
@@ -79,7 +84,6 @@ class CSSUsage extends FRGatherer {
     const coverageResponse = await session.sendCommand('CSS.stopRuleUsageTracking');
     this._ruleUsage = coverageResponse.ruleUsage;
     session.off('CSS.styleSheetAdded', this._onStylesheetAdded);
-    session.off('CSS.styleSheetRemoved', this._onStylesheetRemoved);
   }
 
   /**
@@ -119,15 +123,12 @@ class CSSUsage extends FRGatherer {
     /** @type {Map<string, LH.Artifacts.CSSStyleSheetInfo>} */
     const dedupedStylesheets = new Map();
     const sheets = await Promise.all(this._sheetPromises.values());
-    const sheetIds = Array.from(this._sheetPromises.keys());
 
-    for (let i = 0; i < sheets.length; ++i) {
-      const sheet = sheets[i];
-      const sheetId = sheetIds[i];
-
+    for (const sheet of sheets) {
+      // Erroneous sheets will be reported via sentry and the log.
+      // We can ignore them here without throwing a fatal error.
       if (sheet instanceof Error) {
-        if (this._removedSheets.has(sheetId)) continue;
-        throw sheet;
+        continue;
       }
 
       dedupedStylesheets.set(sheet.content, sheet);

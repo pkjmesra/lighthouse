@@ -16,14 +16,13 @@ import {LH_ROOT} from '../../../../root.js';
 
 jest.setTimeout(90_000);
 
-describe('Cross page timespan', () => {
+describe('Cross origin timespan', () => {
   const state = createTestState();
 
   state.installSetupAndTeardownHooks();
 
   beforeAll(() => {
-    state.server.baseDir = `${LH_ROOT}/lighthouse-core/test/fixtures/fraggle-rock/css-change`;
-    state.secondaryServer.baseDir =
+    state.server.baseDir = state.secondaryServer.baseDir =
       `${LH_ROOT}/lighthouse-core/test/fixtures/fraggle-rock/css-change`;
   });
 
@@ -36,7 +35,7 @@ describe('Cross page timespan', () => {
     if (!result) throw new Error('Lighthouse did not return a result');
 
     // Ensure CSS usage didn't error.
-    expect(result.artifacts.CSSUsage).not.toBeInstanceOf(Error);
+    expect(result.artifacts.CSSUsage.stylesheets).toHaveLength(4);
     expect(result.lhr.audits['unused-css-rules'].score).not.toBeNull();
   });
 });
